@@ -1,0 +1,774 @@
+---
+title: "Satellite Imagery and Machine Learning Workshop"
+author: "Martina Pardy"
+date: "2026-09-18"
+output: html_document
+---
+
+# Part 1 - Introduction to satellite imagery
+
+
+## Install all relevant packages
+
+* `rpart` - Recursive partitioning for classification,
+regression and survival trees. An implementation of most of the
+functionality of the 1984 book by Breiman, Friedman, Olshen and Stone
+https://cran.r-project.org/web/packages/rpart/rpart.pdf
+
+* `caret` - Misc functions for training and plotting classification and
+regression models. https://cran.r-project.org/web/packages/caret/caret.pdf
+
+
+```{r setup, include=FALSE}
+rm(list = ls())
+
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require("rpart")) install.packages("rpart")
+if(!require("rpart.plot")) install.packages("rpart.plot")
+if(!require("caret")) install.packages("caret")
+
+library(terra)
+library(sf)
+library(tmap)
+library(tidyverse)
+library(viridis)
+library(leaflet)
+
+if(!require("mapedit")) install.packages("mapedit") # To edit maps
+if(!require("patchwork")) install.packages("patchwork") # To map ggplots side by side 
+
+```
+
+
+## Path to data folder
+```{r path}
+path_to_folder <- "./"
+```
+
+
+
+# Classifying satellite imagery
+
+This exercise is based on the tutorial by Sydney Goldstein (https://urbanspatial.github.io/classifying_satellite_imagery_in_R/) and applied to London. 
+
+The goal is to use Landsat 8 data to classify London into developed, undeveloped and water land uses. 
+
+To this end, we are going to use a Landsat8 image downloaded from https://earthexplorer.usgs.gov/. You can register to the website and download data for an area that you would like to study. 
+
+We are going to use a level-2 product These images have been processed and calibrated from the raw data from Landsat (level-1 products) and provide an estimate of the surface spectral reflectance as it would be measured at ground level in the absence of atmospheric scattering or absorption. 
+
+# Exploration
+
+## Download the data, save it in your computer 
+
+Download the data from the One Drive link you received by email, and save it in your computer.
+
+If you save it in a folder titled `Landsat` within the `path_to_folder` directory, the code below should work.
+
+
+
+## Let's open the first tif file, containing information on Landsat Band 1
+
+```{r open first tif}
+# bands (with the tif extension)
+tifs <- list.files(paste0(path_to_folder, "Landsat"), pattern = ".TIF", full.names = TRUE)
+
+# get the first file
+firsttif <- rast(tifs[1])
+
+# Plot it:
+plot(firsttif)
+
+```
+
+
+
+## Crop and mask 
+
+We are only interested in the Greater London extent. So, the next step is to crop and mask all the Landsat bands to the London extent.
+We are going to use the London wards shapefile to do this.
+
+```{r get wards file}
+# download shapefile for London wards
+if (!file.exists(paste0(path_to_folder, "/London/boundaries/statistical-gis-boundaries-london/ESRI/London_Ward.shp"))) {
+  download.file("https://data.london.gov.uk/download/statistical-gis-boundary-files-london/9ba8c833-6370-4b11-abdc-314aa020d5e0/statistical-gis-boundaries-london.zip", destfile = paste0(path_to_folder, "London/statistical-gis-boundaries-london.zip"))
+
+  # unzip
+  unzip(paste0(path_to_folder, "London/statistical-gis-boundaries-london.zip"), exdir = paste0(path_to_folder, "London/boundaries"))
+}
+
+# load wards
+cityBoundary <- read_sf(paste0(path_to_folder, "/London/boundaries/statistical-gis-boundaries-london/ESRI/London_Ward.shp")) %>%
+  st_make_valid() %>%
+  st_union()
+
+# If you have trouble downloading the wards file, open the (slightly outdated) one in the `path_to_folder` directory: 
+# cityBoundary <- read_sf(paste0(path_to_folder, "London/wards.shp")) %>% st_make_valid() %>% st_union()
+
+# plot
+plot(cityBoundary)
+
+# transform to the landsat projection
+st_crs(firsttif)
+st_crs(firsttif)$IsGeographic
+cityBoundary <- st_transform(cityBoundary, crs = st_crs(firsttif))
+
+# Plotting them together:
+plot(firsttif) 
+plot(cityBoundary, add = TRUE, border = "red", lwd = 2)
+
+```
+
+Crop all bands using a function:
+
+```{r crop all bands}
+
+# create a folder for the cropped image
+dir.create(paste0(path_to_folder, "London/landsat"))
+
+# create a function to crop and mask
+CropMask <- function(i) {
+  if (!file.exists(paste0(path_to_folder, "London/landsat/London_", substr(tifs[i], nchar(tifs[i])-49, nchar(tifs[i])-4), ".tif"))) {
+    # load raster
+    r <- tifs[i] %>% rast()
+    # crop and mask
+    r <- r %>%
+      crop(vect(cityBoundary)) %>%
+      mask(vect(cityBoundary))
+    # save
+    writeRaster(r, filename = paste0(path_to_folder,"London/landsat/London_", substr(tifs[i], nchar(tifs[i])-49, nchar(tifs[i])-4), ".tif"), overwrite = TRUE)
+  }
+}
+
+# loop over all the bands
+lapply(1:length(tifs), CropMask)
+
+# Remove elemnts we no longer need to unclutter our workspace
+rm(firsttif, tifs, CropMask)
+
+```
+
+
+
+## Landsat band properties
+
+```{r LANDSATBANDS}
+
+# load the bands separately
+band1 <- rast(paste0(path_to_folder,"London/landsat/London_LC08_L2SP_201024_20210418_20210424_02_T1_SR_B1.tif"))
+band2 <- rast(paste0(path_to_folder,"London/landsat/London_LC08_L2SP_201024_20210418_20210424_02_T1_SR_B2.tif"))
+band3 <- rast(paste0(path_to_folder,"London/landsat/London_LC08_L2SP_201024_20210418_20210424_02_T1_SR_B3.tif"))
+band4 <- rast(paste0(path_to_folder,"London/landsat/London_LC08_L2SP_201024_20210418_20210424_02_T1_SR_B4.tif"))
+band5 <- rast(paste0(path_to_folder,"London/landsat/London_LC08_L2SP_201024_20210418_20210424_02_T1_SR_B5.tif"))
+band6 <- rast(paste0(path_to_folder,"London/landsat/London_LC08_L2SP_201024_20210418_20210424_02_T1_SR_B6.tif"))
+band7 <- rast(paste0(path_to_folder,"London/landsat/London_LC08_L2SP_201024_20210418_20210424_02_T1_SR_B7.tif"))
+names(band1) <- "band1"
+names(band2) <- "band2"
+names(band3) <- "band3"
+names(band4) <- "band4"
+names(band5) <- "band5"
+names(band6) <- "band6"
+names(band7) <- "band7"
+
+# plot 1 and 5
+plot(band1)
+plot(band5)
+```
+
+**Task 1** - Read a bit more about what each of these bands represent. What do you see (or don't see) in each of the plots above, and what does it make sense considering what they represent? 
+
+https://landsat.gsfc.nasa.gov/satellites/landsat-8/landsat-8-bands/
+
+https://gisgeography.com/landsat-8-bands-combinations/
+
+
+We can also plot these individual layers in a grey-scale:
+``` {r plot in grey}
+par(mfrow = c(2,2), oma = c(0, 0, 0, 2)) # To arrange your plotting.
+plot(band2, main = "Blue", col = gray(0:100 / 100))
+plot(band3, main = "Green", col = gray(0:100 / 100))
+plot(band4, main = "Red", col = gray(0:100 / 100))
+plot(band5, main = "NIR", col = gray(0:100 / 100))
+
+```
+
+Notice the difference in shading between the different bands. This is because different surface features reflect the incident solar radiation differently. Each layer represent how much incident solar radiation is reflected for a particular wavelength range. For example, vegetation reflects more energy in NIR than other wavelengths and thus appears brighter. In contrast, water absorbs most of the energy in the NIR wavelength and it appears dark.
+
+We do not gain that much information from these grey-scale plots; they are often combined into a “composite” to create more interesting plots. 
+
+We create a raster stack to superpose the bands on top of each other. It will facilitate processing and allows us to plot the different colours together. 
+
+``` {r stackimage}
+# create raster stack
+image <- rast(list(band1, band2, band3, band4, band5, band6, band7))
+
+# check number of layers
+nrasters <- nlyr(image)
+nrasters
+
+# check the crs
+crs(image)
+
+# resolution
+res(image)
+```
+
+
+**Task 2** - How do you interpret the output of `res(image)`?
+
+We can now plot the bands together. The true colour composite is how the image would look to the human eye, and the false colour composite highlights vegetation in red and built-up in blue.
+
+**Note** The _plotRGB_ method can be used to combine them into a single composite. 
+
+
+``` {r plotlandsat}
+# True Colour Composite
+terra::plotRGB(image, r = 4, g = 3, b = 2, stretch = "lin", main="True colour composite")
+
+# False Colour Composite - Infrared
+terra::plotRGB(image, r = 5, g = 4, b = 3, stretch = "lin", main="False colour composite - Infrared")
+
+```
+**Task 3** - Use the plotRGB function to create a true and false color composite (urban). (Hint: remember the position of the bands in the stack). Plot them side by side
+
+
+## Spatial subsetting 
+
+Spatial subsetting can be used to limit analysis to a geographic subset of the image. Spatial subsets can be created with the crop function, using an extent object, or another spatial object from which an Extent can be extracted.
+
+``` {r using extent}
+ext(image)
+
+e <- ext(275102, 293398, 5700070, 5717666)
+centrallondon <- crop(image, e)
+terra::plotRGB(centrallondon, r = 4, g = 3, b = 2, stretch = "lin", main="True colour composite - Central London")
+
+# Another subset: 
+e <- ext(278546, 299856, 5695307, 5715756)
+landsatcrop <- crop(image, e)
+terra::plotRGB(landsatcrop, r = 4, g = 3, b = 2, stretch = "lin", main="True colour composite - Subset")
+
+```
+
+**Task 4** Crop image by a different extent and use the RasterStack ``image`` to create a true and false color composite.
+
+## Raster operations: Map algebra
+
+We can use the red and near-infrared bands to calculate a NDVI (Normalized Difference Vegetation Index). 
+NDVI leverages the properties of the red (which vegetation absorbs) and near-infrared bands (which vegetation strongly reflects). 
+
+NDVI always ranges from -1 to +1.
+* When NDVI is close to +1, there’s a high possibility that it’s dense green leaves.
+* When NDVI is close to zero, there are likely no green leaves and it could be an urbanized area.
+* When NDVI is close to -1, it’s highly likely that it’s water.
+
+You can read more about it here:
+https://gisgeography.com/ndvi-normalized-difference-vegetation-index/
+
+``` {r calculatendvi}
+ndvi <- (image[[5]] - image[[4]])/(image[[5]] + image[[4]])
+
+#minimum
+min_val <- global(ndvi, fun = 'min', na.rm = TRUE)[, 1]
+
+#maximum
+max_val <- global(ndvi, fun = 'max', na.rm = TRUE)[, 1]
+
+# Define color palette:
+colors <- c("brown", "white", "darkgreen")
+ndvi_palette <- colorRampPalette(colors)(20)
+
+# Plot using tmap
+tm_shape(ndvi, raster.downsample = FALSE) +  
+  tm_raster(palette = ndvi_palette, title = "NDVI", midpoint = 0, 
+            breaks = seq(min_val, max_val, length.out = 20)) +  
+  tm_layout(main.title = "NDVI for London", legend.outside = TRUE)
+
+```
+
+
+The darker green patches correspond to the parks and agricultural land on the outside of London.
+
+
+
+
+
+
+
+
+# Part 2 - Introduction to satellite imagery
+
+
+
+
+# Unsupervised classification
+
+In unsupervised classification, we use the reflectance data as inputs, but we don’t supply any ground-truth data. This can be useful when we don’t have much prior knowledge of a study area, or if we don't have specific ground data.
+
+The algorithm groups pixels with similar spectral characteristics into groups.
+
+
+``` {r kmeans}
+
+# Extract the values of the raster as a matrix. Remove the NA-values.
+raster_values <- terra::values(image)
+non_na_index <- which(complete.cases(raster_values))  # This ensures you keep track of valid (non-NA) rows
+filtered_values <- raster_values[non_na_index, ]  # Keep only non-NA rows
+
+# Classify the pixels in the image in 3 categories:
+k <- 3
+raster_class <- kmeans(filtered_values, k)
+
+# How many pixels have been classified in each category?
+table(raster_class$cluster)
+
+# Create an empty raster to plot:
+kmeans_raster <- image[[1]]* NA
+
+# Assign values from the clustering algorithm to empty raster, and convert classified raster to categorical:
+kmeans_raster[non_na_index] <- raster_class$cluster %>% 
+  as.factor()
+
+# Plot the result:
+plot(kmeans_raster, col = viridis::plasma(k), main = paste0("K-means - Number of clusters: ", k))
+
+# Plot true color composite, for comparison: 
+terra::plotRGB(image, r = 4, g = 3, b = 2, stretch = "lin", main = "True color composite")
+
+```
+
+**Task 8**: Can you match the different clusters to a land use category? (e.g. water, developed, etc.) Change the number of clusters (k) to other values, until you find a classification map you are happy with. 
+
+
+
+
+# Supervised classification
+
+We want to create a land-use map for London. But, first, we need to transform the continuous grid values into categories: developed, undeveloped, water, and vegetation. 
+
+We are going to use a supervised learning algorithm. Supervised learning requires labelled input data. 
+
+This input data can come from various sources, including fieldwork you conduct, geospatial data from government or local agencies, existing land-use databases such as the Corine Land Cover (CLC) or Global Land Cover (GLC), and a range of remote sensing imagery.
+
+Today, we are going to use map edit to create training points. For each category we are interested in, we will select points on the ground that we know belong to that category. Thus, we need an equally large number of points for each category, and they need to be balanced in space. 
+
+## Creating Training Points
+
+**WARNING** - the Next 4 chunks maybe take time - check them out, and then skip to the `trainingpts` code chunk. 
+
+`leaflet` allows us to view the true composite of the satellite imagery as a base map.
+
+`editMap` provides the tools to drop points down on the map. 
+
+When we click ‘done’ in the plot window the points we create will be saved as points.
+
+_Note_: In my experience, this procedure is more likely to fail if the layers have many points. You can repeat the process below several times, and create different sets of points (developed1, developed2, etc.), and then combine them into one using: `developed <- rbind(developed1, developed2)`
+
+
+``` {r developed, eval = FALSE}
+
+# Leaflet expects a WGS84 CRS:
+cityBoundary_wgs84 <- st_transform(cityBoundary, crs = 4326)
+
+# Select training points, by adding points to the map:
+points <- leaflet() %>%
+  addTiles() %>%  # Adds the base map
+  addPolygons(data = cityBoundary_wgs84, color = "black", weight = 1, opacity = 1, fillOpacity = 0) %>% 
+  editMap()
+
+# save as developed land  
+developed <- points$finished$geometry %>% 
+  st_sf() %>% 
+  mutate(class = "developed", id = 1)
+
+# Note: We could also have added a satellite image as the basemap instead:
+# points <- leaflet() %>%
+#   addProviderTiles(providers$Esri.WorldImagery) %>%  # Adds the base map
+#   addPolygons(data = cityBoundary_wgs84, color = "black", weight = 1, opacity = 1, fillOpacity = 0) %>% editMap()
+
+```
+
+We repeat the process to pick up undeveloped and water: 
+
+``` {r undeveloped, eval = FALSE}
+# create training points
+points <- leaflet() %>% 
+  addProviderTiles(providers$Esri.WorldImagery) %>%  
+  addPolygons(data = cityBoundary_wgs84, color = "black", weight = 1, opacity = 1, fillOpacity = 0) %>% 
+  editMap()
+
+# then save as undeveloped land 
+undeveloped <- points$finished$geometry %>% st_sf() %>% mutate(class = "undeveloped", id = 2)
+```
+
+``` {r water, eval = FALSE}
+# create training points 
+points <- leaflet() %>% 
+  addProviderTiles(providers$Esri.WorldImagery) %>%  
+  addPolygons(data = cityBoundary_wgs84, color = "black", weight = 1, opacity = 1, fillOpacity = 0) %>% 
+  editMap()
+
+# finally save as water
+water <- points$finished$geometry %>% st_sf() %>% mutate(class = "water", id = 3)
+```
+
+Finally we can merge the points together and save them: 
+
+``` {r mergetogether, eval = FALSE}
+training_points <- rbind(developed, undeveloped, water)
+st_write(training_points, paste0(path_to_folder, "London/landsat/london_trainingPoints_example.shp"), append = FALSE)
+```
+
+
+## Alternatively: Load Existing Set of Training Points
+This is a set of training points that I have created:
+
+``` {r trainingpts}
+training_points <- st_read(paste0(path_to_folder, "London/landsat/london_trainingPoints.shp"))
+
+head(as.data.frame(training_points))
+tail(as.data.frame(training_points))
+
+```
+
+
+Let's plot the training points to see if there are equally distributed in space:
+
+``` {r supervision}
+# create a map looking at just the distribution of points
+A <- ggplot() +
+  geom_sf(data = cityBoundary, fill = "light gray", color = NA) +
+  geom_sf(data = training_points, size = 0.5) +
+  labs(title = "Distribution of\nclassification points") +
+  theme(panel.background = element_blank(), axis.ticks = element_blank(), axis.text = element_blank()) 
+A
+
+# create a map looking at the distribution of points by classification type
+B <- ggplot() +
+  geom_sf(data = cityBoundary, fill = 'gray90', color = NA) +
+  geom_sf(data = training_points, aes(color = class), size = 0.5) +
+  scale_color_manual(name = "Land uses", values = c('azure4', 'yellowgreen', 'steelblue1')) +
+  labs(title = "Classification points by land use") +
+  theme(panel.background = element_blank(), axis.ticks = element_blank(), axis.text = element_blank())
+B
+
+# plot side by side, using the patchwork package
+A + B + plot_layout(ncol = 2) 
+
+# plot side by side, changing individual titles and providing an overall one: 
+A_modified <- A + labs(title = "Distribution") + theme(plot.title = element_text(size = 10))
+B_modified <- B + labs(title = "By land use") + theme(plot.title = element_text(size = 10))
+combined_plot <- (A_modified + B_modified + plot_layout(ncol = 2) + 
+                  plot_annotation(title = "Classification points"))
+
+combined_plot
+
+```
+
+## Extracting spectral values from the raster
+
+We create a data frame with the values of of all of the different bands for each point:
+
+``` {r ptsprofile}
+
+# Transform crs of training points to that of the raster:
+training_points <- terra::project(vect(training_points), crs(image))
+
+# Extract values from the raster for the training points
+df <- terra::extract(image, training_points) %>% round()
+
+# Explore the resulting data frame: 
+head(df)
+
+# Remove ID variable
+df <- df %>% 
+  select(-ID) 
+
+```
+
+## Exploratory analysis: Plotting the spectral profile
+
+Now that we have the values for each point, we can create the mean for each category. Each category should absorb and reflect light differently.  
+
+``` {r createmeanforeachpt}
+
+## Clean the data frame
+df_clean <- df %>% 
+  as.data.frame() %>% 
+  cbind(., training_points$id) %>% 
+  rename(id = "training_points$id") %>% 
+  na.omit() %>% 
+  mutate(id = case_when(id == 1 ~ "developed",
+                        id == 2 ~ "undeveloped",
+                        id == 3 ~ "water"))
+head(df_clean)
+
+
+## Create points profile
+profiles <- df_clean %>%
+  group_by(id) %>% 
+  summarise(band1 = mean(band1),
+            band2 = mean(band2),
+            band3 = mean(band3),
+            band4 = mean(band4),
+            band5 = mean(band5),
+            band6 = mean(band6),
+            band7 = mean(band7)) %>% 
+  as.data.frame()
+
+head(profiles)
+
+## Reshape the data frame to plot it
+profile_long <- profiles %>% 
+  pivot_longer(c(-id), names_to = "band", values_to = "value") 
+
+head(profile_long)
+
+```
+
+We can plot the result. Ideally, each land use type should have a different profile.
+
+``` {r plotprofile}
+## Plot the profiles
+profile_long %>% 
+  ggplot(data = ., aes(x = fct_relevel(as.factor(band),
+                                       c("band1", "band2", "band3", "band4","band5", "band6", "band7")), 
+                       y = value, group=id, color = id)) +
+  geom_line(lwd = 1.2) +
+  geom_point(size = 2.5) +
+  scale_color_manual(values=c('azure4', 'yellowgreen', 'steelblue1')) +
+  labs(title = "Spectral Profile from Landsat 8 Imagery",
+       x = "Bands",
+       y = "Reflectance") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_line(color = "gray", linewidth = 0.5),
+        panel.grid.minor = element_line(color = "gray", linewidth = 0.5),
+        axis.ticks = element_blank())
+``` 
+
+
+Beyond averages, we can also plot density of the reflectance values in each group by band. If there is an overlap between categories, the model might have a hard time differentiating them.
+
+``` {r reflect by band}
+# Select band we want to plot
+b <- 7
+
+# Select band we want to plot
+df_clean$selected_band <- df_clean[[paste0("band", b)]]
+
+# Calculate mean reflectance by id
+group_means <- df_clean %>%
+  group_by(id) %>%
+  summarise(band.mean = mean(selected_band))
+
+# Reflectance
+df_clean %>% 
+  ggplot(aes(x=selected_band, group=as.factor(id), fill=as.factor(id))) + 
+  geom_density(alpha = 0.75) + 
+  geom_vline(data = group_means,
+             mapping = aes(xintercept=band.mean, color = id), 
+             linetype="dashed", linewidth=1, show.legend = FALSE) +
+  scale_fill_manual(values=c('azure4', 'yellowgreen', 'steelblue1'), name = "Land use") +
+  scale_color_manual(values=c('azure4', 'yellowgreen', 'steelblue1')) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_line(color = "gray", linewidth = 0.5),
+        panel.grid.minor = element_line(color = "gray", linewidth = 0.5),
+        axis.ticks = element_blank()) +
+  labs(x = "Reflectance Value",
+       y = "Density",
+       title = "Density of spectral profiles",
+       subtitle = paste0("Band ", b))
+```
+
+We can plot all the bands together.
+
+``` {r reflect all bands together}
+
+# Reshape data from wide to long format
+df_long <- df_clean %>%
+  pivot_longer(
+    cols = starts_with("band"), 
+    names_to = "band", 
+    values_to = "value"
+  )
+
+# Plot densities for all bands using facets
+df_long %>% 
+  ggplot(aes(x = value, group = id, fill = id)) + 
+  geom_density(alpha = 0.75, color = NA) + 
+  geom_vline(data = profile_long,
+             mapping = aes(xintercept = value, color = id),
+             linetype = "dashed", linewidth = 0.5, show.legend = FALSE) +
+  facet_wrap(~ band, scales = "free_x") +
+  scale_fill_manual(values = c('azure4', 'yellowgreen', 'steelblue1'), name = "Land use") +
+  scale_color_manual(values = c('azure4', 'yellowgreen', 'steelblue1')) +
+   theme(
+    panel.background = element_blank(),
+    panel.grid = element_blank(),          # Remove grid lines
+    axis.title = element_blank(),          # Remove axis titles
+    axis.text = element_blank(),           # Remove axis text
+    axis.ticks = element_blank()           # Remove axis ticks
+  ) +
+  labs(
+    x = NULL,  # Remove x-axis label
+    y = NULL,  # Remove y-axis label
+    title = "Density of spectral profiles for bands 1 to 7"
+  )
+
+```
+
+
+## Supervised classification
+
+We use a decision tree algorithm to classify the data. The first task is to combine the class and the extracted values into a dataframe.
+
+Decision trees start with the best predictor and continually subset the data. The if/else ‘decisions’ are represented as ‘nodes’, and the outcomes from the decisions become ‘leaves’ on the tree. The algorithm will use these rules to determine what the predicted outcome should be.
+
+``` {r supervisedclassification}
+## Supervised Classification of Imagery
+df <- data.frame(training_points$class, df)
+
+model.class <- rpart(as.factor(training_points.class)~., data = df, method = 'class') #using rpart package here for Recursive Partitioning and Regression Trees, we train the model.
+
+print(model.class)
+
+```
+
+Plotting the classification tree created in previous chunk
+``` {r tree}
+rpart.plot(model.class, box.palette = 0, main = "Classification Tree")
+```
+
+Now we have our trained classification model (model.class), we can use it to make predictions, that is, to classify all cells in our rasters. We use the model to predict the full extent of London.
+
+``` {r predict}
+
+# Prediction object (pr) has three layers, each representing the probability of a particular land use: 
+pr <- terra::predict(image, model.class) 
+plot(pr)
+
+# Create a new raster that shows, for each cell, the land use with the highest probability
+landuse <- which.max(pr)
+plot(landuse)
+
+# Plot the landuse raster with tmap:
+landuse_map <- landuse %>%
+  crop(vect(st_transform(cityBoundary, crs(landuse)))) %>%
+  mask(vect(st_transform(cityBoundary, crs(landuse))))
+
+levels(landuse_map) <- data.frame(id = 1:3, class = c("developed", "undeveloped", "water")) #Assigns meaningful labels to the numeric values in the raster data
+
+tm_shape(landuse_map, raster.downsample = FALSE) + 
+  tm_raster(
+    style = "cat", 
+    palette = c('azure4', 'yellowgreen', 'steelblue1'), 
+    title = "Land Cover Classification", 
+    labels = c("developed", "undeveloped", "water")
+  ) +
+  tm_layout(
+    main.title = "Supervised Classification of Imagery", 
+    legend.outside = TRUE
+  )
+
+```
+
+**Task 5** Comment on the accuracy of the classification with you classmates.
+
+## Model evaluation - Confusion matrix
+Let's evaluate how well the model predicted by creating a confusion matrix that compares the predicted class to the observed (ground-truthed) class.
+A confusion matrix, also known as an error matrix, is a specific table layout that allows visualisation of the performance of an algorithm, typically a supervised learning one.
+
+``` {r testingthemodel}
+test <- terra::extract(landuse, training_points) %>% 
+  as.data.frame() %>% 
+  select(-ID) %>% 
+  rename(class_extracted = which.max)
+
+confMatrix <- confusionMatrix(as.factor(training_points$id), as.factor(test$class_extracted))
+confMatrix
+```
+
+**Task 6** Comment on the confusion matrix. Some help here: https://towardsdatascience.com/decoding-the-confusion-matrix-bb4801decbb
+https://encord.com/glossary/confusion-matrix/
+
+A key term in the confusion matrix is Sensitivity or the amount of grid cells predicted to be a specific land cover and were actually that land cover. Although the model does worse when predicting developed land, the confusion matrix shows the model predicts 98% of undeveloped land and 100% of the sample points for water.
+
+## Model evaluation - Confusion matrix with k-fold cross-validation
+
+In the modeling above, we are using the same set of points to train the model (that is, define land uses) and to then evaluate how well the model does.
+
+To get a better sense of how good our model is in predicting land use, we should use a different set points to train and evaluate the model. 
+
+This can be done with a technique called k-fold cross-validation, where the dataset used for model fitting is divided into k groups (commonly k is 5 or 10). Each group is used once for model testing, while the remaining groups are used for training the model. This process is repeated k times, ensuring that every group is used for testing exactly once.
+
+
+```{r cross-validation}
+set.seed(2024) # The data is randomly separated into k groups. By using set.seed(), you ensure that the random split of the data can be repeated exactly.
+
+# Remember df is the data frame with our training points, and the values of each of the bands we use for modelling 
+k <- 5
+j <- sample(rep(1:k, each = round(nrow(df))/k))
+table(j)
+
+# Create an empty data frame to store the results
+evaluation <- data.frame()
+
+# We  now train and test the model k times, each time calculating the predictions and storing them along with the actual values in a list.
+for (fold in 1:k) {
+    train <- df[j!= fold, ]
+    test <- df[j == fold, ]
+    
+    model.class.eval <- rpart(as.factor(training_points.class)~., data = train, method = 'class') 
+    pclass <- predict(model.class.eval, test) 
+    
+    landuse.eval <- apply(pclass, 1, which.max)
+    landuse.eval <- colnames(pclass)[landuse.eval] # use labels instead of numbers
+    
+    # create a data.frame using the reference and prediction
+    temp_df <- data.frame(obs = test$training_points.class, pred = landuse.eval)
+    evaluation <- rbind(evaluation, temp_df)
+}
+
+
+# Generate a new confusion matrix: 
+confMatrix <- confusionMatrix(as.factor(evaluation$obs), as.factor(evaluation$pred))
+confMatrix
+
+
+```
+
+**Task 7** Comment how the confusion matrix has changed. 
+
+
+
+
+# References
+
+Note: this reference relies on a deprecated package (`raster`):
+https://urbanspatial.github.io/classifying_satellite_imagery_in_R/
+
+https://rspatial.org/rs/5-supclassification.html
+
+https://landsat.gsfc.nasa.gov/landsat-8/landsat-8-bands
+
+https://rspatial.org/rs/4-unsupclassification.html
+
+https://www.gis-blog.com/unsupervised-kmeans-classification-of-satellite-imagery-using-r/
+
+http://remote-sensing.org/unsupervised-classification-with-r/
+
+
+# Answer to Task 3
+
+``` {r task 3}
+par(mfrow = c(1,2)) 
+plotRGB(image, r = 4, g = 3, b = 2, stretch = "lin", main="True colour composite")
+plotRGB(image, r = 7, g = 6, b = 4, stretch = "lin", main="False colour composite - Urban")
+
+```
+
+
+
+
+

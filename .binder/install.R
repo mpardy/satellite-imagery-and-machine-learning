@@ -1,0 +1,15 @@
+install.packages(c(
+  "tidyverse",
+  "sf",
+  "terra",
+  "tmap",
+  "leaflet",
+  "viridis",
+  "rpart",
+  "rpart.plot",
+  "caret",
+  "mapedit",
+  "patchwork",
+  "knitr",
+  "rmarkdown"
+))
