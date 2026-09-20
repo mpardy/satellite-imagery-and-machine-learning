@@ -1,6 +1,6 @@
 # Satellite Imagery and Machine Learning Workshop
 
-[![Launch RStudio on Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/mpardy/harvard_workshop/main?urlpath=rstudio)
+[![Launch RStudio on Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/mpardy/satellite-imagery-and-machine-learning/main?urlpath=rstudio)
 
 Welcome to the **Satellite Imagery and Machine Learning Workshop**!
 
@@ -13,7 +13,7 @@ This repository contains the interactive materials, satellite dataset references
 You can run all the code directly in your browser without installing R or GIS packages locally!
 
 - **Click to launch RStudio on Binder**:  
-  [![Launch RStudio on Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/mpardy/harvard_workshop/main?urlpath=rstudio)
+  [![Launch RStudio on Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/mpardy/satellite-imagery-and-machine-learning/main?urlpath=rstudio)
 
 *Note: The first launch may take 2–5 minutes while Binder builds the container with spatial libraries (GDAL, GEOS, PROJ) and R packages.*
 
@@ -32,7 +32,7 @@ You can run all the code directly in your browser without installing R or GIS pa
 If you prefer running locally on your computer:
 1. Clone this repository:
    ```bash
-   git clone https://github.com/mpardy/harvard_workshop.git
+   git clone https://github.com/mpardy/satellite-imagery-and-machine-learning.git
    ```
 2. Open `Satellite_imagery_ML.Rmd` in RStudio.
 3. Install the required R packages if you haven't already:
