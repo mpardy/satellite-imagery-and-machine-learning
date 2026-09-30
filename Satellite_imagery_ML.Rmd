@@ -86,9 +86,9 @@ plot(firsttif)
 
 
 
-## Crop and mask 
+## Crop and mask (Trim image size & cookie-cutter to exact boundary)
 
-We are only interested in the Greater London extent. So, the next step is to crop and mask all the Landsat bands to the London extent.
+We are only interested in the Greater London extent. So, the next step is to **crop** (trim the large image down to a smaller rectangle around London, like cropping a photo) and **mask** (erase pixels outside the exact curved border of London, like using a cookie-cutter stencil) all the Landsat bands to the London extent.
 We are going to use the London wards shapefile to do this.
 
 ```{r get wards file}
