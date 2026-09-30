@@ -24,9 +24,9 @@ rm(list = ls())
 
 knitr::opts_chunk$set(echo = TRUE)
 
-if(!require("rpart")) install.packages("rpart")
-if(!require("rpart.plot")) install.packages("rpart.plot")
-if(!require("caret")) install.packages("caret")
+if(!require("rpart")) install.packages("rpart")          # fits the decision tree (recursive partitioning)
+if(!require("rpart.plot")) install.packages("rpart.plot") # draws the fitted tree as a readable diagram
+if(!require("caret")) install.packages("caret")           # trains/evaluates models: data splits, cross-validation, accuracy metrics
 
 library(terra)
 library(sf)
@@ -35,8 +35,7 @@ library(tidyverse)
 library(viridis)
 library(leaflet)
 
-if(!require("mapedit")) install.packages("mapedit") # To edit maps
-if(!require("patchwork")) install.packages("patchwork") # To map ggplots side by side 
+path_to_folder <- "./"
 
 ```
 
@@ -60,19 +59,22 @@ We are going to use a level-2 product These images have been processed and calib
 
 # Exploration
 
-## Download the data, save it in your computer 
-
-Download the data from the One Drive link you received by email, and save it in your computer.
-
-If you save it in a folder titled `Landsat` within the `path_to_folder` directory, the code below should work.
-
-
-
 ## Let's open the first tif file, containing information on Landsat Band 1
 
 ```{r open first tif}
-# bands (with the tif extension)
-tifs <- list.files(paste0(path_to_folder, "Landsat"), pattern = ".TIF", full.names = TRUE)
+# Determine directory containing Landsat tif files (uncropped in 'Landsat' or pre-cropped in 'London/landsat')
+landsat_dir <- if (dir.exists(paste0(path_to_folder, "Landsat")) && length(list.files(paste0(path_to_folder, "Landsat"), pattern = "(?i)\\.tif$")) > 0) {
+  paste0(path_to_folder, "Landsat")
+} else {
+  paste0(path_to_folder, "London/landsat")
+}
+
+# Get list of tif files (case-insensitive)
+tifs <- list.files(landsat_dir, pattern = "(?i)\\.tif$", full.names = TRUE)
+
+if (length(tifs) == 0) {
+  stop("No .tif files found in ", landsat_dir, ". Please check that your Landsat raster files are located in 'London/landsat/' or 'Landsat/'.")
+}
 
 # get the first file
 firsttif <- rast(tifs[1])
@@ -425,7 +427,16 @@ st_write(training_points, paste0(path_to_folder, "London/landsat/london_training
 This is a set of training points that I have created:
 
 ``` {r trainingpts}
-training_points <- st_read(paste0(path_to_folder, "London/landsat/london_trainingPoints.shp"))
+training_pts_file <- paste0(path_to_folder, "London/landsat/london_trainingPoints.shp")
+if (!file.exists(training_pts_file)) {
+  training_pts_file <- paste0(path_to_folder, "London/landsat/london_trainingPoints_example.shp")
+}
+
+if (file.exists(training_pts_file)) {
+  training_points <- st_read(training_pts_file)
+} else {
+  stop("Training points shapefile not found at ", training_pts_file, ". Please run the interactive editMap steps or place london_trainingPoints.shp in London/landsat/.")
+}
 
 head(as.data.frame(training_points))
 tail(as.data.frame(training_points))
