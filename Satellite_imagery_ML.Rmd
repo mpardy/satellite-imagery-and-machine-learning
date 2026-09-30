@@ -173,10 +173,14 @@ names(band5) <- "band5"
 names(band6) <- "band6"
 names(band7) <- "band7"
 
-# plot 1 and 5
-plot(band1)
-plot(band5)
+# plot 1 and 5 with descriptive titles
+plot(band1, main = "Band 1 - Coastal Aerosol / Ultra Blue")
+plot(band5, main = "Band 5 - Near-Infrared (NIR)")
 ```
+
+> **Notes on Band 1 vs. Band 5:**
+> - **Band 1 (Coastal Aerosol / Ultra Blue: 0.43–0.45 µm):** Designed for deep blue water imaging and atmospheric aerosol detection. Because short blue wavelengths undergo strong atmospheric scattering, land features appear relatively low-contrast and hazy.
+> - **Band 5 (Near-Infrared / NIR: 0.85–0.88 µm):** Highly sensitive to vegetation health and water bodies. **Healthy vegetation appears very bright** because plant cell structures strongly reflect NIR energy. Conversely, **water absorbs NIR energy**, causing rivers (like the Thames) and lakes to appear **very dark/black**, creating sharp contrast with land.
 
 **Task 1** - Read a bit more about what each of these bands represent. What do you see (or don't see) in each of the plots above, and what does it make sense considering what they represent? 
 
