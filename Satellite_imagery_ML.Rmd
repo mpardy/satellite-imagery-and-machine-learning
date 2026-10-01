@@ -754,16 +754,6 @@ https://www.gis-blog.com/unsupervised-kmeans-classification-of-satellite-imagery
 http://remote-sensing.org/unsupervised-classification-with-r/
 
 
-# Additional Band Composite Example (Urban)
-
-``` {r urban_composite}
-par(mfrow = c(1,2)) 
-plotRGB(image, r = 4, g = 3, b = 2, stretch = "lin", main="True colour composite")
-plotRGB(image, r = 7, g = 6, b = 4, stretch = "lin", main="False colour composite - Urban")
-
-```
-
-
 
 
 
