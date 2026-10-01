@@ -608,7 +608,7 @@ df_long %>%
 
 ## Supervised classification
 
-We use a decision tree algorithm to classify the data. The first task is to combine the class and the extracted values into a dataframe.
+We use a decision tree algorithm to classify the data. The first step is to combine the class and the extracted values into a dataframe.
 
 Decision trees start with the best predictor and continually subset the data. The if/else ‘decisions’ are represented as ‘nodes’, and the outcomes from the decisions become ‘leaves’ on the tree. The algorithm will use these rules to determine what the predicted outcome should be.
 
@@ -675,9 +675,6 @@ tm_shape(landuse_green, raster.downsample = FALSE) +
     main.title = "Supervised: Green Space vs. Non-Green Space", 
     legend.outside = TRUE
   )
-```
-
-**Task 5** Comment on the accuracy of the classification with you classmates.
 
 ## Model evaluation - Confusion matrix
 Let's evaluate how well the model predicted by creating a confusion matrix that compares the predicted class to the observed (ground-truthed) class.
@@ -697,7 +694,7 @@ confMatrix <- confusionMatrix(predicted, actual)
 confMatrix
 ```
 
-**Task 6** Comment on the confusion matrix. Some help here: https://towardsdatascience.com/decoding-the-confusion-matrix-bb4801decbb
+Useful resources for interpreting confusion matrices: https://towardsdatascience.com/decoding-the-confusion-matrix-bb4801decbb
 https://encord.com/glossary/confusion-matrix/
 
 A key term in the confusion matrix is Sensitivity or the amount of grid cells predicted to be a specific land cover and were actually that land cover. Although the model does worse when predicting developed land, the confusion matrix shows the model predicts 98% of undeveloped land and 100% of the sample points for water.
@@ -746,10 +743,6 @@ confMatrix
 
 ```
 
-**Task 7** Comment how the confusion matrix has changed. 
-
-
-
 
 # References
 
@@ -767,9 +760,9 @@ https://www.gis-blog.com/unsupervised-kmeans-classification-of-satellite-imagery
 http://remote-sensing.org/unsupervised-classification-with-r/
 
 
-# Answer to Task 3
+# Additional Band Composite Example (Urban)
 
-``` {r task 3}
+``` {r urban_composite}
 par(mfrow = c(1,2)) 
 plotRGB(image, r = 4, g = 3, b = 2, stretch = "lin", main="True colour composite")
 plotRGB(image, r = 7, g = 6, b = 4, stretch = "lin", main="False colour composite - Urban")
