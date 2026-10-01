@@ -352,11 +352,11 @@ levels(kmeans_green) <- data.frame(
   class = c("Non-Green Space", "Green Space", "Non-Green Space")
 )
 
-# Plot binary Unsupervised Green Space map
+# Plot binary Unsupervised Green Space map (Green Space = forestgreen, Non-Green Space & Water = gray80)
 tm_shape(kmeans_green, raster.downsample = FALSE) + 
   tm_raster(
     style = "cat", 
-    palette = c("forestgreen", "gray80"), 
+    palette = c("gray80", "forestgreen"), 
     title = "Unsupervised Class"
   ) +
   tm_layout(
@@ -652,11 +652,11 @@ levels(landuse_green) <- data.frame(
   class = c("Non-Green Space", "Green Space", "Non-Green Space")
 )
 
-# Plot binary Supervised Green Space map
+# Plot binary Supervised Green Space map (Green Space = forestgreen, Non-Green Space & Water = gray80)
 tm_shape(landuse_green, raster.downsample = FALSE) + 
   tm_raster(
     style = "cat", 
-    palette = c("forestgreen", "gray80"), 
+    palette = c("gray80", "forestgreen"), 
     title = "Supervised Class"
   ) +
   tm_layout(
