@@ -4,3 +4,7 @@
 .RData
 .Ruserdata
 *.tmp
+Rplots.pdf
+*.html
+Satellite_imagery_ML.md
+figure/

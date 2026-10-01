@@ -1,7 +1,7 @@
 ---
 title: "Satellite Imagery and Machine Learning Workshop"
 author: "Martina Pardy"
-date: "2026-09-18"
+date: "2026-10-02"
 output: html_document
 ---
 
@@ -96,7 +96,7 @@ plot(firsttif)
 
 
 
-## Crop and mask (Trim image size & cookie-cutter to exact boundary)
+## Crop and mask 
 
 We are only interested in the Greater London extent. So, the next step is to **crop** (trim the large image down to a smaller London) and **mask** (erase pixels outside the exact curved border of London) all the Landsat bands to the London extent.
 We are going to use the London wards shapefile to do this.
@@ -186,8 +186,10 @@ plot(band5, main = "Band 5 - Near-Infrared (NIR)")
 ```
 
 > **Notes on Band 1 vs. Band 5:**
-> - **Band 1 (Coastal Aerosol / Ultra Blue: 0.43–0.45 µm):** Designed for deep blue water imaging and atmospheric aerosol detection. Because short blue wavelengths undergo strong atmospheric scattering, land features appear relatively low-contrast and hazy.
-> - **Band 5 (Near-Infrared / NIR: 0.85–0.88 µm):** Highly sensitive to vegetation health and water bodies. **Healthy vegetation appears very bright** because plant cell structures strongly reflect NIR energy. Conversely, **water absorbs NIR energy**, causing rivers (like the Thames) and lakes to appear **very dark/black**, creating sharp contrast with land.
+
+> **Band 1 (Coastal Aerosol / Ultra Blue: 0.43–0.45 µm):** Designed for deep blue water imaging and atmospheric aerosol detection. Because short blue wavelengths undergo strong atmospheric scattering, land features appear relatively low-contrast and hazy.
+
+>  **Band 5 (Near-Infrared / NIR: 0.85–0.88 µm):** Highly sensitive to vegetation health and water bodies. **Healthy vegetation appears very bright** because plant cell structures strongly reflect NIR energy. Conversely, **water absorbs NIR energy**, causing rivers (like the Thames) and lakes to appear **very dark/black**, creating sharp contrast with land.
 
 Read a bit more about what each of these bands represent. What do you see (or don't see) in each of the plots above, and what does it make sense considering what they represent? 
 
