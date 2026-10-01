@@ -336,6 +336,8 @@ plot(kmeans_raster, col = viridis::plasma(k), main = paste0("K-means - Number of
 
 # Plot true color composite, for comparison: 
 terra::plotRGB(image, r = 4, g = 3, b = 2, stretch = "lin", main = "True color composite")
+```
+
 
 Can you match the different clusters to a land use category? (e.g. water, developed, etc.) Change the number of clusters (k) to other values, until you find a classification map you are happy with. 
 
@@ -344,19 +346,25 @@ Can you match the different clusters to a land use category? (e.g. water, develo
 We can re-classify the K-means clusters into a binary map separating **Green Space** (undeveloped/vegetation cluster) from **Non-Green Space** (developed & water clusters):
 
 ```{r kmeans_greenspace}
-# Map K-means cluster IDs into Green Space vs. Non-Green Space
-# Cluster 2 corresponds to undeveloped/vegetation; Clusters 1 & 3 are Non-Green Space
+
+# Dynamically identify which cluster corresponds to Vegetation/Green Space (highest Band 5 / NIR reflectance)
+veg_cluster <- which.max(raster_class$centers[, 5])
+
+# Assign Green Space label to the vegetation cluster, and Non-Green Space to all other clusters
+cluster_labels <- rep("Non-Green Space", k)
+cluster_labels[veg_cluster] <- "Green Space"
+
 kmeans_green <- kmeans_raster
 levels(kmeans_green) <- data.frame(
-  id = 1:3, 
-  class = c("Non-Green Space", "Green Space", "Non-Green Space")
+  id = 1:k, 
+  class = cluster_labels
 )
 
-# Plot binary Unsupervised Green Space map (Green Space = forestgreen, Non-Green Space & Water = gray80)
+# Plot binary Unsupervised Green Space map with explicit named colors
 tm_shape(kmeans_green, raster.downsample = FALSE) + 
   tm_raster(
     style = "cat", 
-    palette = c("gray80", "forestgreen"), 
+    palette = c("Green Space" = "forestgreen", "Non-Green Space" = "gray80"), 
     title = "Unsupervised Class"
   ) +
   tm_layout(
@@ -652,11 +660,11 @@ levels(landuse_green) <- data.frame(
   class = c("Non-Green Space", "Green Space", "Non-Green Space")
 )
 
-# Plot binary Supervised Green Space map (Green Space = forestgreen, Non-Green Space & Water = gray80)
+# Plot binary Supervised Green Space map with explicit named colors
 tm_shape(landuse_green, raster.downsample = FALSE) + 
   tm_raster(
     style = "cat", 
-    palette = c("gray80", "forestgreen"), 
+    palette = c("Green Space" = "forestgreen", "Non-Green Space" = "gray80"), 
     title = "Supervised Class"
   ) +
   tm_layout(
