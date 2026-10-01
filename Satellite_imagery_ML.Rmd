@@ -28,12 +28,17 @@ if(!require("rpart")) install.packages("rpart")          # fits the decision tre
 if(!require("rpart.plot")) install.packages("rpart.plot") # draws the fitted tree as a readable diagram
 if(!require("caret")) install.packages("caret")           # trains/evaluates models: data splits, cross-validation, accuracy metrics
 
+if(!require("mapedit")) install.packages("mapedit")     # To edit maps
+if(!require("patchwork")) install.packages("patchwork") # To map ggplots side by side 
+
 library(terra)
 library(sf)
 library(tmap)
 library(tidyverse)
 library(viridis)
 library(leaflet)
+library(patchwork)
+library(mapedit)
 
 # Fix for mapedit package using defunct dplyr::select_()
 if (requireNamespace("dplyr", quietly = TRUE)) {
