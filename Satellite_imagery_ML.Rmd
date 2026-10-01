@@ -635,27 +635,16 @@ Now we have our trained classification model (model.class), we can use it to mak
 
 ``` {r predict}
 
-# Prediction object (pr) has three layers, each representing the probability of a particular land use: 
-pr <- terra::predict(image, model.class) 
-plot(pr)
-
-# Create a new raster that shows, for each cell, the land use with the highest probability
-landuse <- which.max(pr)
-plot(landuse)
+# Predict land use category directly (type = 'class' runs in ~2 seconds on Binder!)
+landuse_map <- terra::predict(image, model.class, type = "class")
+landuse <- landuse_map
 
 # Plot the landuse raster with tmap:
-landuse_map <- landuse %>%
-  crop(vect(st_transform(cityBoundary, crs(landuse)))) %>%
-  mask(vect(st_transform(cityBoundary, crs(landuse))))
-
-levels(landuse_map) <- data.frame(id = 1:3, class = c("developed", "undeveloped", "water")) #Assigns meaningful labels to the numeric values in the raster data
-
-tm_shape(landuse_map, raster.downsample = FALSE) + 
+tm_shape(landuse_map) + 
   tm_raster(
     style = "cat", 
     palette = c('azure4', 'yellowgreen', 'steelblue1'), 
-    title = "Land Cover Classification", 
-    labels = c("developed", "undeveloped", "water")
+    title = "Land Cover Classification"
   ) +
   tm_layout(
     main.title = "Supervised Classification of Imagery", 
@@ -699,10 +688,10 @@ A confusion matrix, also known as an error matrix, is a specific table layout th
 ``` {r testingthemodel}
 test <- terra::extract(landuse, training_points) %>% 
   as.data.frame() %>% 
-  select(-ID) %>% 
-  rename(class_extracted = which.max)
+  select(-ID)
+colnames(test) <- "class_extracted"
 
-confMatrix <- confusionMatrix(as.factor(training_points$id), as.factor(test$class_extracted))
+confMatrix <- confusionMatrix(as.factor(training_points$class), as.factor(test$class_extracted))
 confMatrix
 ```
 
