@@ -54,8 +54,6 @@ path_to_folder <- "./"
 
 
 
-# Classifying satellite imagery
-
 This exercise is based on the tutorial by Sydney Goldstein (https://urbanspatial.github.io/classifying_satellite_imagery_in_R/) and applied to London. 
 
 The goal is to use Landsat 8 data to classify London into developed, undeveloped and water land uses. 
@@ -111,9 +109,6 @@ if (!file.exists(paste0(path_to_folder, "/London/boundaries/statistical-gis-boun
 cityBoundary <- read_sf(paste0(path_to_folder, "/London/boundaries/statistical-gis-boundaries-london/ESRI/London_Ward.shp")) %>%
   st_make_valid() %>%
   st_union()
-
-# If you have trouble downloading the wards file, open the (slightly outdated) one in the `path_to_folder` directory: 
-# cityBoundary <- read_sf(paste0(path_to_folder, "London/wards.shp")) %>% st_make_valid() %>% st_union()
 
 # plot
 plot(cityBoundary)
@@ -342,93 +337,49 @@ plot(kmeans_raster, col = viridis::plasma(k), main = paste0("K-means - Number of
 # Plot true color composite, for comparison: 
 terra::plotRGB(image, r = 4, g = 3, b = 2, stretch = "lin", main = "True color composite")
 
-```
-
 Can you match the different clusters to a land use category? (e.g. water, developed, etc.) Change the number of clusters (k) to other values, until you find a classification map you are happy with. 
+
+### Binary Classification: Green Space vs. Non-Green Space (Unsupervised)
+
+We can re-classify the K-means clusters into a binary map separating **Green Space** (undeveloped/vegetation cluster) from **Non-Green Space** (developed & water clusters):
+
+```{r kmeans_greenspace}
+# Map K-means cluster IDs into Green Space vs. Non-Green Space
+# Cluster 2 corresponds to undeveloped/vegetation; Clusters 1 & 3 are Non-Green Space
+kmeans_green <- kmeans_raster
+levels(kmeans_green) <- data.frame(
+  id = 1:3, 
+  class = c("Non-Green Space", "Green Space", "Non-Green Space")
+)
+
+# Plot binary Unsupervised Green Space map
+tm_shape(kmeans_green, raster.downsample = FALSE) + 
+  tm_raster(
+    style = "cat", 
+    palette = c("forestgreen", "gray80"), 
+    title = "Unsupervised Class"
+  ) +
+  tm_layout(
+    main.title = "K-Means: Green Space vs. Non-Green Space", 
+    legend.outside = TRUE
+  )
+```
 
 
 
 
 # Supervised classification
 
-We want to create a land-use map for London. But, first, we need to transform the continuous grid values into categories: developed, undeveloped, water, and vegetation. 
+
+We want to create a land-use map for London. But, first, we need to transform the continuous grid values into categories: developed, undeveloped, water, and vegetation.
 
 We are going to use a supervised learning algorithm. Supervised learning requires labelled input data. 
 
 This input data can come from various sources, including fieldwork you conduct, geospatial data from government or local agencies, existing land-use databases such as the Corine Land Cover (CLC) or Global Land Cover (GLC), and a range of remote sensing imagery.
 
-Today, we are going to use map edit to create training points. For each category we are interested in, we will select points on the ground that we know belong to that category. Thus, we need an equally large number of points for each category, and they need to be balanced in space. 
+## Exploration of the labelled data
 
-## Creating Training Points
-
-**WARNING** - the Next 4 chunks maybe take time - check them out, and then skip to the `trainingpts` code chunk. 
-
-`leaflet` allows us to view the true composite of the satellite imagery as a base map.
-
-`editMap` provides the tools to drop points down on the map. 
-
-When we click ‘done’ in the plot window the points we create will be saved as points.
-
-_Note_: In my experience, this procedure is more likely to fail if the layers have many points. You can repeat the process below several times, and create different sets of points (developed1, developed2, etc.), and then combine them into one using: `developed <- rbind(developed1, developed2)`
-
-
-``` {r developed, eval = FALSE}
-
-# Leaflet expects a WGS84 CRS:
-cityBoundary_wgs84 <- st_transform(cityBoundary, crs = 4326)
-
-# Select training points, by adding points to the map:
-points <- leaflet() %>%
-  addTiles() %>%  # Adds the base map
-  addPolygons(data = cityBoundary_wgs84, color = "black", weight = 1, opacity = 1, fillOpacity = 0) %>% 
-  editMap()
-
-# save as developed land  
-developed <- points$finished$geometry %>% 
-  st_sf() %>% 
-  mutate(class = "developed", id = 1)
-
-# Note: We could also have added a satellite image as the basemap instead:
-# points <- leaflet() %>%
-#   addProviderTiles(providers$Esri.WorldImagery) %>%  # Adds the base map
-#   addPolygons(data = cityBoundary_wgs84, color = "black", weight = 1, opacity = 1, fillOpacity = 0) %>% editMap()
-
-```
-
-We repeat the process to pick up undeveloped and water: 
-
-``` {r undeveloped, eval = FALSE}
-# create training points
-points <- leaflet() %>% 
-  addProviderTiles(providers$Esri.WorldImagery) %>%  
-  addPolygons(data = cityBoundary_wgs84, color = "black", weight = 1, opacity = 1, fillOpacity = 0) %>% 
-  editMap()
-
-# then save as undeveloped land 
-undeveloped <- points$finished$geometry %>% st_sf() %>% mutate(class = "undeveloped", id = 2)
-```
-
-``` {r water, eval = FALSE}
-# create training points 
-points <- leaflet() %>% 
-  addProviderTiles(providers$Esri.WorldImagery) %>%  
-  addPolygons(data = cityBoundary_wgs84, color = "black", weight = 1, opacity = 1, fillOpacity = 0) %>% 
-  editMap()
-
-# finally save as water
-water <- points$finished$geometry %>% st_sf() %>% mutate(class = "water", id = 3)
-```
-
-Finally we can merge the points together and save them: 
-
-``` {r mergetogether, eval = FALSE}
-training_points <- rbind(developed, undeveloped, water)
-st_write(training_points, paste0(path_to_folder, "London/landsat/london_trainingPoints_example.shp"), append = FALSE)
-```
-
-
-## Alternatively: Load Existing Set of Training Points
-This is a set of training points that I have created:
+Load Existing Set of Training Points:
 
 ``` {r trainingpts}
 training_pts_file <- paste0(path_to_folder, "London/landsat/london_trainingPoints.shp")
@@ -644,7 +595,7 @@ Decision trees start with the best predictor and continually subset the data. Th
 ## Supervised Classification of Imagery
 df <- data.frame(training_points$class, df)
 
-model.class <- rpart(as.factor(training_points.class)~., data = df, method = 'class') #using rpart package here for Recursive Partitioning and Regression Trees, we train the model.
+model.class <- rpart(as.factor(training_points.class)~., data = df, method = 'class') #using rpart package here for Recursive Partitioning and Regression Trees, we train the model
 
 print(model.class)
 
@@ -686,6 +637,32 @@ tm_shape(landuse_map, raster.downsample = FALSE) +
     legend.outside = TRUE
   )
 
+```
+
+### Binary Classification: Green Space vs. Non-Green Space (Supervised)
+
+Similarly, we can re-classify the Supervised Decision Tree output into **Green Space** ("undeveloped") and **Non-Green Space** ("developed" and "water"):
+
+```{r supervised_greenspace}
+# Map Supervised land cover categories to Green Space vs. Non-Green Space
+# Category 2 = undeveloped (Green Space); Categories 1 & 3 = developed & water (Non-Green Space)
+landuse_green <- landuse_map
+levels(landuse_green) <- data.frame(
+  id = 1:3, 
+  class = c("Non-Green Space", "Green Space", "Non-Green Space")
+)
+
+# Plot binary Supervised Green Space map
+tm_shape(landuse_green, raster.downsample = FALSE) + 
+  tm_raster(
+    style = "cat", 
+    palette = c("forestgreen", "gray80"), 
+    title = "Supervised Class"
+  ) +
+  tm_layout(
+    main.title = "Supervised: Green Space vs. Non-Green Space", 
+    legend.outside = TRUE
+  )
 ```
 
 **Task 5** Comment on the accuracy of the classification with you classmates.
