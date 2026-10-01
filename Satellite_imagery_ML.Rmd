@@ -96,10 +96,12 @@ plot(firsttif)
 
 
 
-## Crop and mask 
+## Crop and mask (Trim image size & cookie-cutter to exact boundary)
 
-We are only interested in the Greater London extent. So, the next step is to **crop** (trim the large image down to a smaller London) and **mask** (erase pixels outside the exact curved border of London) all the Landsat bands to the London extent.
-We are going to use the London wards shapefile to do this.
+> **Note for Workshop Participants:**  
+> In a full workflow starting from raw USGS satellite downloads, you would crop the raw full-scene images to your study area here. To save bandwidth and processing time during this online workshop, the pre-cropped London bands are already provided in `London/landsat/`. The code below demonstrates the `CropMask` function for reference (and safely skips re-processing since the files are present).
+
+We are only interested in the Greater London extent. So, the next step is to **crop** (trim the large image down to a smaller rectangle around London) and **mask** (erase pixels outside the exact curved border of London) all the Landsat bands to the London extent. We use the London wards shapefile to do this.
 
 ```{r get wards file}
 # download shapefile for London wards
