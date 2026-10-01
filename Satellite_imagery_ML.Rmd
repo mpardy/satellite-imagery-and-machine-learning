@@ -220,6 +220,10 @@ We create a raster stack to superpose the bands on top of each other. It will fa
 # create raster stack
 image <- rast(list(band1, band2, band3, band4, band5, band6, band7))
 
+# Clean up individual band objects to free up RAM memory
+rm(band1, band2, band3, band4, band5, band6, band7)
+gc()
+
 # check number of layers
 nrasters <- nlyr(image)
 nrasters
@@ -345,6 +349,10 @@ plot(kmeans_raster, col = viridis::plasma(k), main = paste0("K-means - Number of
 
 # Plot true color composite, for comparison: 
 terra::plotRGB(image, r = 4, g = 3, b = 2, stretch = "lin", main = "True color composite")
+
+# Clean up large matrix objects no longer needed to free session RAM for Binder
+rm(raster_values, filtered_values)
+gc()
 ```
 
 
