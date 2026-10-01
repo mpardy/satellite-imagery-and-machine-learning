@@ -133,8 +133,8 @@ Crop all bands using a function:
 
 ```{r crop all bands}
 
-# create a folder for the cropped image
-dir.create(paste0(path_to_folder, "London/landsat"))
+# create a folder for the cropped images (showWarnings = FALSE prevents 'already exists' warning)
+dir.create(paste0(path_to_folder, "London/landsat"), showWarnings = FALSE)
 
 # create a function to crop and mask
 CropMask <- function(i) {
@@ -150,7 +150,7 @@ CropMask <- function(i) {
   }
 }
 
-# loop over all the bands
+# loop over all 7 bands (Note: returns [[1..7]] NULL when files already exist on disk and re-processing is skipped)
 lapply(1:length(tifs), CropMask)
 
 # Remove elemnts we no longer need to unclutter our workspace
