@@ -612,8 +612,15 @@ df <- data.frame(training_points$class, df)
 model.class <- rpart(as.factor(training_points.class)~., data = df, method = 'class') #using rpart package here for Recursive Partitioning and Regression Trees, we train the model
 
 print(model.class)
-
 ```
+
+> **How to read the printed decision tree output (`print(model.class)`):**
+> * **`node)`**: Node index in the tree hierarchy (`*` marks a final decision leaf).
+> * **`split`**: The decision rule threshold (e.g. `band1 < 8724`).
+> * **`n`**: Number of training sample points evaluated at this node.
+> * **`loss`**: Number of misclassified sample points at this step.
+> * **`yval`**: Majority land cover class prediction (`developed`, `undeveloped`, or `water`).
+> * **`(yprob)`**: Class probability distribution `(developed, undeveloped, water)`.
 
 Plotting the classification tree created in previous chunk
 ``` {r tree}
