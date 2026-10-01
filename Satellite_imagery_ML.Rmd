@@ -632,11 +632,13 @@ Now we have our trained classification model (model.class), we can use it to mak
 ``` {r predict}
 
 # Predict land use category directly (type = 'class' runs in ~2 seconds on Binder!)
-landuse_map <- terra::predict(image, model.class, type = "class")
+# Mask to image[[1]] so pixels outside the London boundary remain NA rather than default-classified as water by rpart
+landuse_map <- terra::predict(image, model.class, type = "class") %>%
+  mask(image[[1]])
 landuse <- landuse_map
 
 # Plot the landuse raster with tmap:
-tm_shape(landuse_map) + 
+tm_shape(landuse_map, raster.downsample = FALSE) + 
   tm_raster(
     style = "cat", 
     palette = c('azure4', 'yellowgreen', 'steelblue1'), 
