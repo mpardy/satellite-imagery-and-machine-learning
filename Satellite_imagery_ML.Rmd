@@ -427,26 +427,19 @@ Let's plot the training points to see if there are equally distributed in space:
 A <- ggplot() +
   geom_sf(data = cityBoundary, fill = "light gray", color = NA) +
   geom_sf(data = training_points, size = 0.5) +
-  labs(title = "Distribution of\nclassification points") +
-  theme(panel.background = element_blank(), axis.ticks = element_blank(), axis.text = element_blank()) 
-A
+  labs(title = "Distribution") +
+  theme(panel.background = element_blank(), axis.ticks = element_blank(), axis.text = element_blank(), plot.title = element_text(size = 10)) 
 
 # create a map looking at the distribution of points by classification type
 B <- ggplot() +
   geom_sf(data = cityBoundary, fill = 'gray90', color = NA) +
   geom_sf(data = training_points, aes(color = class), size = 0.5) +
   scale_color_manual(name = "Land uses", values = c('azure4', 'yellowgreen', 'steelblue1')) +
-  labs(title = "Classification points by land use") +
-  theme(panel.background = element_blank(), axis.ticks = element_blank(), axis.text = element_blank())
-B
+  labs(title = "By land use") +
+  theme(panel.background = element_blank(), axis.ticks = element_blank(), axis.text = element_blank(), plot.title = element_text(size = 10))
 
 # plot side by side, using the patchwork package
-A + B + plot_layout(ncol = 2) 
-
-# plot side by side, changing individual titles and providing an overall one: 
-A_modified <- A + labs(title = "Distribution") + theme(plot.title = element_text(size = 10))
-B_modified <- B + labs(title = "By land use") + theme(plot.title = element_text(size = 10))
-combined_plot <- (A_modified + B_modified + plot_layout(ncol = 2) + 
+combined_plot <- (A + B + plot_layout(ncol = 2) + 
                   plot_annotation(title = "Classification points"))
 
 combined_plot
@@ -631,7 +624,7 @@ Now we have our trained classification model (model.class), we can use it to mak
 
 ``` {r predict}
 
-# Predict land use category directly (type = 'class' runs in ~2 seconds on Binder!)
+# Predict land use category directly
 # Mask to image[[1]] so pixels outside the London boundary remain NA rather than default-classified as water by rpart
 landuse_map <- terra::predict(image, model.class, type = "class") %>%
   mask(image[[1]])
@@ -675,6 +668,7 @@ tm_shape(landuse_green, raster.downsample = FALSE) +
     main.title = "Supervised: Green Space vs. Non-Green Space", 
     legend.outside = TRUE
   )
+```
 
 ## Model evaluation - Confusion matrix
 Let's evaluate how well the model predicted by creating a confusion matrix that compares the predicted class to the observed (ground-truthed) class.
