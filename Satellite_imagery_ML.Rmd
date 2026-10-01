@@ -691,7 +691,11 @@ test <- terra::extract(landuse, training_points) %>%
   select(-ID)
 colnames(test) <- "class_extracted"
 
-confMatrix <- confusionMatrix(as.factor(training_points$class), as.factor(test$class_extracted))
+# Match text factor levels ("developed", "undeveloped", "water") between actual and predicted classes
+actual <- factor(training_points$class, levels = c("developed", "undeveloped", "water"))
+predicted <- factor(test$class_extracted, levels = c("developed", "undeveloped", "water"))
+
+confMatrix <- confusionMatrix(predicted, actual)
 confMatrix
 ```
 
