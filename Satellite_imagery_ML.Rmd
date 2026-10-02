@@ -621,6 +621,10 @@ print(model.class)
 > * **`loss`**: Number of misclassified sample points at this step.
 > * **`yval`**: Majority land cover class prediction (`developed`, `undeveloped`, or `water`).
 > * **`(yprob)`**: Class probability distribution `(developed, undeveloped, water)`.
+> 
+> **Examples:**
+> * `1) root 58 37 undeveloped (0.27586207 0.36206897 0.36206897)`: Node 1 (root) starts with 58 total points. 27.6% are developed, 36.2% undeveloped, and 36.2% water. The majority class is undeveloped (37 points misclassified if stopped here).
+> * `2) band1 < 8724 20 9 undeveloped (0.35000000 0.55000000 0.10000000)`: Node 2 filters points where Band 1 reflectance is < 8724 (20 points total). 35% are developed, 55% undeveloped, and 10% water. The majority class is undeveloped (9 points misclassified if stopped here).
 
 Plotting the classification tree created in previous chunk
 ``` {r tree}
